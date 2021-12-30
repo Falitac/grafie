@@ -34,11 +34,10 @@ function updateCanvasSize() {
 function loop(time = 1) {
   let dt = time - lastFrameTime;
   lastFrameTime = time;
-  console.log(dt);
 
   update();
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
-  draw();
+  draw(time);
   requestAnimationFrame(loop);
 }
 
@@ -46,7 +45,7 @@ function update() {
 
 }
 
-function draw() {
+function draw(time) {
   drawAxis();
   let boundaries = drawScale();
 
@@ -62,9 +61,19 @@ function draw() {
     return (x-5)*(x-20);
   }
 
-  let g = x => {
-    return 3*x;
+  let w = x => {
+    let result = (x-18);
+    for(let i = -17; i <= 19; i++) {
+      result *= x + i;
+    }
+    return result;
   }
+
+  let g = x => {
+    return Math.sin(x * time / 1000);
+  }
+
+  console.log(boundaries);
 
   drawFunction(Math.sin, boundaries);
   drawFunction(Math.cos, boundaries, 'blue', 2.5);
@@ -73,6 +82,7 @@ function draw() {
   drawFunction(inv, boundaries, 'magenta');
   drawFunction(f, boundaries, 'magenta');
   drawFunction(g, boundaries, 'black');
+  //drawFunction(w, boundaries, 'white', 1);
 }
 
 function drawAxis(thickness = 0.6) {
@@ -95,8 +105,9 @@ function drawScale(thickness = 0.6, scaleSize = 40, width = 10) {
   if(offset < 0) {
     offset += scaleSize;
   }
-  resultBoundaries.xmin = interpolateNum(0, 0, divisions, -divisions / 2, divisions / 2);
-  resultBoundaries.xmax = interpolateNum(divisions, 0, divisions, -divisions / 2, divisions / 2);
+  let miniOffset = offset / divisions;
+  resultBoundaries.xmin = interpolateNum(0, 0, WIDTH, -divisions / 2, divisions / 2) - miniOffset;
+  resultBoundaries.xmax = interpolateNum(WIDTH, 0, WIDTH, -divisions / 2, divisions / 2) + miniOffset;
 
   for(let i = 0; i < divisions; i++) {
     if(Math.floor(divisions / 2) === i) {
@@ -122,8 +133,9 @@ function drawScale(thickness = 0.6, scaleSize = 40, width = 10) {
   if(offset < 0) {
     offset += scaleSize;
   }
-  resultBoundaries.ymin = interpolateNum(0, 0, divisions, -divisions / 2, divisions / 2);
-  resultBoundaries.ymax = interpolateNum(divisions, 0, divisions, -divisions / 2, divisions / 2);
+  miniOffset = offset / divisions;
+  resultBoundaries.ymin = interpolateNum(0, 0, divisions, -divisions / 2, divisions / 2) - miniOffset;
+  resultBoundaries.ymax = interpolateNum(divisions, 0, divisions, -divisions / 2, divisions / 2) + miniOffset;
 
   for(let i = 0; i < divisions; i++) {
     if(Math.floor(divisions / 2) === i) {
