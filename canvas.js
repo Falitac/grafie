@@ -22,8 +22,6 @@ function Boundaries(xmin = -1.0, xmax = 1.0, ymin = -1.0, ymax = 1.0) {
 function init() {
   updateCanvasSize();
   window.onresize = updateCanvasSize;
-  console.log(`${interpolateNum(2, -2, 6, 10, 100)}`);
-  console.log(`${WIDTH}`);
 }
 
 function updateCanvasSize() {
@@ -47,7 +45,6 @@ function update() {
 
 function draw(time) {
   drawAxis();
-  let boundaries = drawScale();
 
   let foo = x => {
     return x*x;
@@ -69,19 +66,21 @@ function draw(time) {
     return result;
   }
 
-  let g = x => {
-    return Math.sin(x * time / 1000);
+  let F = (x, y) => {
+    return [0, x*y * y];
   }
 
-  console.log(boundaries);
 
+
+  let boundaries = drawScale();
   drawFunction(Math.sin, boundaries);
   drawFunction(Math.cos, boundaries, 'blue', 2.5);
   drawFunction(Math.exp, boundaries, 'white', 1);
   drawFunction(foo, boundaries, 'cyan');
   drawFunction(inv, boundaries, 'magenta');
   drawFunction(f, boundaries, 'magenta');
-  drawFunction(g, boundaries, 'black');
+  drawVectorField(F, boundaries, 40, 1);
+  drawScale();
   //drawFunction(w, boundaries, 'white', 1);
 }
 
@@ -91,11 +90,12 @@ function drawAxis(thickness = 0.6) {
   ctx.fillRect(WIDTH / 2, 0, thickness, HEIGHT);
 }
 
-// TODO make less boilerplate
+// TODO make less boilerplate, repair bad aligning and few bugs
 function drawScale(thickness = 0.6, scaleSize = 40, width = 10) {
   let resultBoundaries = new Boundaries();
 
   ctx.fillStyle = 'lime';
+  ctx.font = '0.8em Consolas';
   // x axis
   let divisions = Math.floor(WIDTH / scaleSize);
   if(divisions % 2 === 1) {
@@ -109,7 +109,7 @@ function drawScale(thickness = 0.6, scaleSize = 40, width = 10) {
   resultBoundaries.xmin = interpolateNum(0, 0, WIDTH, -divisions / 2, divisions / 2) - miniOffset;
   resultBoundaries.xmax = interpolateNum(WIDTH, 0, WIDTH, -divisions / 2, divisions / 2) + miniOffset;
 
-  for(let i = 0; i < divisions; i++) {
+  for(let i = 0; i <= divisions; i++) {
     if(Math.floor(divisions / 2) === i) {
       continue;
     }
@@ -117,7 +117,6 @@ function drawScale(thickness = 0.6, scaleSize = 40, width = 10) {
     let y = (HEIGHT - width) / 2;
     ctx.fillRect(x, y, thickness, width);
     ctx.fillStyle = 'white';
-    ctx.font = '10px Arial';
     let value = interpolateNum(i, 0, divisions, -divisions / 2, divisions / 2);
     value = value.toFixed(2);
     let textWidth = ctx.measureText(value).width;
@@ -137,7 +136,7 @@ function drawScale(thickness = 0.6, scaleSize = 40, width = 10) {
   resultBoundaries.ymin = interpolateNum(0, 0, divisions, -divisions / 2, divisions / 2) - miniOffset;
   resultBoundaries.ymax = interpolateNum(divisions, 0, divisions, -divisions / 2, divisions / 2) + miniOffset;
 
-  for(let i = 0; i < divisions; i++) {
+  for(let i = 0; i <= divisions; i++) {
     if(Math.floor(divisions / 2) === i) {
       continue;
     }
@@ -146,10 +145,10 @@ function drawScale(thickness = 0.6, scaleSize = 40, width = 10) {
     ctx.fillStyle = 'lime';
     ctx.fillRect(x, y, width, thickness);
     ctx.fillStyle = 'white';
-    ctx.font = '10px Arial';
     let value = interpolateNum(-i, -divisions, 0, -divisions / 2, divisions / 2);
     value = value.toFixed(2);
-    ctx.fillText(`${value}`, x + width, y - width);
+    let textWidth = ctx.measureText(value).width;
+    ctx.fillText(`${value}`, x - width - textWidth, y + 2);
   }
   return resultBoundaries;
 }
@@ -159,16 +158,91 @@ function drawFunction(fun, boundaries, color = 'red', thickness = 0.8) {
   ctx.lineWidth = thickness;
   ctx.beginPath();
 
+  let j = 0;
   for(let i = 0; i < WIDTH; i++) {
     let x = interpolateNum(i, 0, WIDTH, boundaries.xmin, boundaries.xmax);
     let y = fun(x);
-    if(i > 0) {
+    if(y < 2*boundaries.ymin || y > 2*boundaries.ymax) {
+      j = i;
+    }
+    if(i > j) {
       ctx.lineTo(i, interpolateNum(y, boundaries.ymin, boundaries.ymax, HEIGHT, 0));
     } else {
       ctx.moveTo(i, interpolateNum(y, boundaries.ymin, boundaries.ymax, HEIGHT, 0));
     }
   }
 
+  ctx.stroke();
+}
+
+function drawVectorField(fun, boundaries, scaleSize = 40, thickness = 1) {
+  ctx.fillStyle = 'lime';
+
+  let xDivisions = Math.floor(WIDTH / scaleSize);
+  if(xDivisions % 2 === 1) {
+    xDivisions--;
+  }
+  let xOffset = (WIDTH - scaleSize * xDivisions ) / 2;
+  if(xOffset < 0) {
+    xOffset += scaleSize;
+  }
+
+  let yDivisions = Math.floor(HEIGHT / scaleSize);
+  if(yDivisions % 2 === 1) {
+    yDivisions--;
+  }
+  let yOffset = (HEIGHT - scaleSize * yDivisions ) / 2;
+  if(yOffset < 0) {
+    yOffset += scaleSize;
+  }
+
+  for(let i = 0; i <= yDivisions; i++) {
+    for(let j = 0; j <= xDivisions; j++) {
+      let x = interpolateNum(j, 0, xDivisions, boundaries.xmin, boundaries.ymin);
+      let y = interpolateNum(i, 0, yDivisions, boundaries.ymin, boundaries.ymax);
+
+      let vx, vy;
+      [vx, vy] = fun(x, y);
+
+      vx = interpolateNum(vx, boundaries.xmin, boundaries.xmax, 0, WIDTH);
+      vy = interpolateNum(vy, boundaries.ymin, boundaries.ymax, 0, HEIGHT);
+      let len = length([vx, vy]);
+      [vx, vy] = normalize([vx, vy]);
+
+      let angle = Math.atan2(vy, vx);
+
+      let scalar = 20;
+      vx *= scalar;
+      vy *= scalar;
+      let normalizedLen = length([vx, vy]);
+
+      let winx = scaleSize * j + xOffset;
+      let winy = scaleSize * i + yOffset;
+
+      let hue = len;
+      ctx.strokeStyle = `hsl(${hue}, 100%, 70%)`;
+      drawArrow(winx, winy, 20, angle);
+    }
+  }
+}
+
+function drawArrow(x, y, len, angle, angleDiff = .34, arrowFraction = 0.2) {
+  let xEnd = x + len * Math.cos(angle);
+  let yEnd = y + len * Math.sin(angle);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(xEnd, yEnd);
+  angle -= angleDiff;
+  ctx.lineTo(
+    xEnd - Math.cos(angle) * len * arrowFraction,
+    yEnd - Math.sin(angle) * len * arrowFraction
+  );
+  ctx.moveTo(xEnd, yEnd);
+  angle += 2 * angleDiff;
+  ctx.lineTo(
+    xEnd - Math.cos(angle) * len * arrowFraction,
+    yEnd - Math.sin(angle) * len * arrowFraction
+  );
   ctx.stroke();
 }
 
@@ -179,7 +253,23 @@ function drawFunction(fun, boundaries, color = 'red', thickness = 0.8) {
  * @param {number} range1_end b
  * @param {number} range2_start c
  * @param {number} range2_end d
- */
+**/
 function interpolateNum(x, range1_start, range1_end, range2_start, range2_end) {
   return (x - range1_start) / (range1_end - range1_start) * (range2_end - range2_start) + range2_start;
+}
+
+function length(v) {
+  return Math.pow(v[0] * v[0] + v[1] * v[1], 0.5)
+}
+
+function normalize(v) {
+  let len = length(v);
+  if(len == 0.0) {
+    return [0, 0];
+  }
+  let result = [
+    v[0] / length(v),
+    v[1] / length(v)
+  ];
+  return result;
 }
