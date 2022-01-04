@@ -5,6 +5,8 @@ let WIDTH = canvas.innerWidth;
 let HEIGHT = canvas.innerHeight;
 let lastFrameTime = 0;
 
+let grid = undefined;
+
 if(ctx === undefined) {
   console.log('Error: could not get canvas context');
 } else {
@@ -27,6 +29,7 @@ function init() {
 function updateCanvasSize() {
   WIDTH = canvas.width = window.innerWidth;
   HEIGHT = canvas.height = window.innerHeight;
+  grid = new Grid(WIDTH, HEIGHT, 150);
 }
 
 function loop(time = 1) {
@@ -72,7 +75,8 @@ function draw(time) {
 
 
 
-  let boundaries = drawScale();
+  let boundaries = drawScale(2, 150);
+  /*
   drawFunction(Math.sin, boundaries);
   drawFunction(Math.cos, boundaries, 'blue', 2.5);
   drawFunction(Math.exp, boundaries, 'white', 1);
@@ -82,6 +86,7 @@ function draw(time) {
   drawVectorField(F, boundaries, 40, 1);
   drawScale();
   //drawFunction(w, boundaries, 'white', 1);
+  */
 }
 
 function drawAxis(thickness = 0.6) {
@@ -115,6 +120,7 @@ function drawScale(thickness = 0.6, scaleSize = 40, width = 10) {
     }
     let x = i * scaleSize + offset;
     let y = (HEIGHT - width) / 2;
+    ctx.fillStyle = 'lime';
     ctx.fillRect(x, y, thickness, width);
     ctx.fillStyle = 'white';
     let value = interpolateNum(i, 0, divisions, -divisions / 2, divisions / 2);
@@ -244,32 +250,4 @@ function drawArrow(x, y, len, angle, angleDiff = .34, arrowFraction = 0.2) {
     yEnd - Math.sin(angle) * len * arrowFraction
   );
   ctx.stroke();
-}
-
-/**
- * @description Converts x from range (a, b) to range (c, d)
- * @param {number} x Number to convert
- * @param {number} range1_start a
- * @param {number} range1_end b
- * @param {number} range2_start c
- * @param {number} range2_end d
-**/
-function interpolateNum(x, range1_start, range1_end, range2_start, range2_end) {
-  return (x - range1_start) / (range1_end - range1_start) * (range2_end - range2_start) + range2_start;
-}
-
-function length(v) {
-  return Math.pow(v[0] * v[0] + v[1] * v[1], 0.5)
-}
-
-function normalize(v) {
-  let len = length(v);
-  if(len == 0.0) {
-    return [0, 0];
-  }
-  let result = [
-    v[0] / length(v),
-    v[1] / length(v)
-  ];
-  return result;
 }
